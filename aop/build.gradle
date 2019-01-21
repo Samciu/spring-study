@@ -28,8 +28,6 @@ repositories {
 }
 
 dependencies {
-	// compile 'org.aspectj:aspectjweaver:1.9.2'
-	// compile 'org.springframework:spring-aop:5.0.1.RELEASE'
 	compile 'org.springframework.boot:spring-boot-starter-aop'
 	implementation 'org.springframework.boot:spring-boot-starter'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
