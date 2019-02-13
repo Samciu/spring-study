@@ -23,4 +23,8 @@ public class UserBalance {
     public void setBalance(Double balance) {
         this.balance = balance;
     }
+
+    public String toString() {
+        return "{ userId: " + this.getUserId() + " , balance: " + this.getBalance() + " }";
+    }
 }

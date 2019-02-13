@@ -3,35 +3,40 @@
  */
 package mybatis;
 
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import mybatis.MybatisUserBalanceDao;
 
 @SpringBootApplication
 public class App {
-
-    @Autowired
-	private MybatisUserBalanceDao dao;
 
     public static void main(String[] args) {
         SpringApplication.run(App.class, args);
     }
 
     @Bean
-	public CommandLineRunner commandLineRunner(ApplicationContext ctx) {
-		return args -> {
+    public CommandLineRunner commandLineRunner(ApplicationContext ctx) {
+        return args -> {
 
-            // UserBalanceDao dao = ctx.getBean("MybatisUserBalanceDao", UserBalanceDao.class);
-            List<UserBalance> userBalanceList = dao.getUserBalanceList();
-            for (UserBalance userBalance: userBalanceList) {
-                System.out.println(userBalance.getUserId() + " " + userBalance.getBalance());
+            // get mapper
+            MybatisUserBalanceDao dao = ctx.getBean("mybatisUserBalanceDao", MybatisUserBalanceDao.class);
+            // get service
+            TransferMoneyService transferBalanceService = ctx.getBean("transferMoneyService",
+                    TransferMoneyService.class);
+            transferBalanceService.setUserBalanceDao(dao);
+            // log 一下
+            transferBalanceService.logUserBalanceList();
+
+            try {
+                transferBalanceService.transferMoney(Long.valueOf(1), Long.valueOf(2), 100);
+            } catch (Exception e) {
+                System.out.println(e.toString());
             }
-		};
-	}
+
+            // 再log 一下
+            transferBalanceService.logUserBalanceList();
+        };
+    }
 }
