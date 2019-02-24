@@ -1,37 +1,22 @@
 package template.web.controller;
 
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.stereotype.Controller;
 import template.service.UserService;
 
-import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-@RestController
+@Controller
 public class UserController {
 
     @Autowired
     private UserService userService;
 
     @RequestMapping(path = { "/userlist"})
-    public ModelAndView userListHtml(ModelAndView modelAndView) {
-        modelAndView.setViewName("user");
+    public String userList(Model model) {
+        model.addAttribute("userList", this.userService.getUserList());
 
-        modelAndView.addObject("userList", this.userService.getUserList());
-        return modelAndView;
+        return "user";
     }
-
-    @RequestMapping(path = { "/userlist", "/userlist.json" }, produces = "application/json")
-    public Map<String, Object> userList() {
-        return this.userService.getUserListMap();
-    }
-
-    @RequestMapping("/")
-    public String index() {
-        return "Greetings from Spring Boot!";
-    }
-
 }
