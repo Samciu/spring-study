@@ -46,7 +46,7 @@ INSERT INTO `User` VALUES ('1001', 'test1');
 INSERT INTO `User` VALUES ('1002', 'test2');
 ```
 
-2. WebConfig.java: 配置ContentNegotiatingViewResolver实现内容协商，扩展名或者Accept头返回HTML文档或者JSON数据，优先级（扩展名 > Parameter > Accept头）
+2. WebConfig.java: 抛弃XML，配置ContentNegotiatingViewResolver实现内容协商，扩展名或者Accept头返回HTML文档或者JSON数据，优先级（扩展名 > Parameter > Accept头）
 
 ```java
     @Bean
