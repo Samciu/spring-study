@@ -2,165 +2,115 @@
 
 ## 要求
 
-提供一个接口，该接口可以根据需要（扩展名，Accept头）返回一个HTML文档或者JSON数据，要求：
-1. 返回的JSON数据是一个用户列表，每个用户包含两个信息：用户Id（userId），用户名（userName），最终的数据类似：
+假设有如下数据表：
 
-```json
-{
-    "userList" : [
-        {
-            "userId": 1001,
-            "userName": "test1"
-        },
-        {
-            "userId": 1002,
-            "userName": "test2"
-        }
-        ...
-    ]
-}
+```sql
+create table Blog(
+
+blogId int auto_increment primary key comment "博客Id",  
+
+blogTitle varchar(10) comment "博客标题",
+
+blogContent varchar(100) comment "博客内容" )
+
+ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 ```
 
-2. 返回的HTML文档基于FreeMarker生成，内容是一个用户列表的表格；
-3. 返回的数据从数据库表里查询出来的；
-4. 根据项目模板里介绍的内容组织代码及资源。
 
-## 实现
-1. 使用gradle构建以及管理依赖。
-2. 使用spring-boot简化配置。
+提供一个发表博客的接口，可以通过POST方法（表单）提交两个参数，blogTitle，blogContent，类型为String，并且限制blogTitle长度20个英文字符，blogContent长度为100个英文字符（假设客户端传过来的内容都为英文字符），如果内容不符合长度要求，向客户端返回400响应码，如果符合长度要求，则将内容保存到Blog数据表中，并返回200响应码给客户端。
 
 ## 部分代码
-1. user.sql: 数据库初始化
-```sql
-DROP TABLE IF EXISTS `User`;
-CREATE TABLE `User` (
-  `userId` int(11) NOT NULL AUTO_INCREMENT,
-  `userName` VARCHAR(40) NOT NULL,
-  PRIMARY KEY (`userId`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
-
--- ----------------------------
--- Records of User
--- ----------------------------
-INSERT INTO `User` VALUES ('1001', 'test1');
-INSERT INTO `User` VALUES ('1002', 'test2');
-```
-
-2. WebConfig.java: 抛弃XML，配置ContentNegotiatingViewResolver实现内容协商，扩展名或者Accept头返回HTML文档或者JSON数据，优先级（扩展名 > Parameter > Accept头）
-
+1. Blog类
 ```java
-    @Bean
-	public ContentNegotiatingViewResolver contentNegotiatingViewResolver(ContentNegotiationManager manager,
-			List<ViewResolver> viewResolvers) {
+public class Blog {
+    private String blogTitle;
+    private String blogContent;
 
-		ContentNegotiatingViewResolver viewResolver = new ContentNegotiatingViewResolver();
-		viewResolver.setContentNegotiationManager(manager);
-
-		// 设置默认view, default view 每次都会添加到 真正可用的视图列表中, json视图没有对应的ViewResolver
-		View jackson2JsonView = new MappingJackson2JsonView();
-		viewResolver.setDefaultViews(Collections.singletonList(jackson2JsonView));
-
-		viewResolver.setViewResolvers(viewResolvers);
-		return viewResolver;
+    public String getBlogTitle() {
+        return blogTitle;
     }
-    
-    @Override
-	public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
-		configurer.favorPathExtension(true).favorParameter(true).parameterName("format").ignoreAcceptHeader(false)
 
-				/* 请求以.html结尾的会被当成MediaType.TEXT_HTML */
-				.mediaType("html", MediaType.TEXT_HTML)
-				/* 请求以.json结尾的会被当成MediaType.APPLICATION_JSON */
-				.mediaType("json", MediaType.APPLICATION_JSON).defaultContentType(MediaType.APPLICATION_JSON);
-	}
+    public void setBlogTitle(String blogTitle) {
+        this.blogTitle = blogTitle;
+    }
+
+    public String getBlogContent() {
+        return blogContent;
+    }
+
+    public void setBlogContent(String blogContent) {
+        this.blogContent = blogContent;
+    }
+}
 ```
 
-3. UserDao，User数据库访问接口
+2. BlogDao，Blog数据库访问接口
 ```java
 @Mapper
-public interface UserDao{
+public interface BlogDao{
 
-	@Select("Select * from User")
-	public List<User> getUserList();
+	@Select("Select * from Blog")
+	public List<Blog> getBlogList();
 
+	@Insert("insert into Blog (blogTitle, blogContent) values (#{param1}, #{param2})")
+	public void insertBlog(String blogTitle, String blogContent);
+	
 }
 ```
 
-4. UserService，User对应的业务逻辑层
+3. BlogService，Blog对应的业务逻辑层
 ```java
 @Service
-public class UserService {
+public class BlogService {
 
     @Resource
-    private UserDao dao;
+    private BlogDao dao;
 
-    public List<User> getUserList() {
-        return dao.getUserList();
+    public List<Blog> getBlogList() {
+        return dao.getBlogList();
     }
 
-    public Map<String, Object> getUserListMap() {
-        Map<String, Object> root = new HashMap<String, Object>();
-        root.put("userList", this.getUserList());
-        return root;
+    public void insertBlog(String blogTitle, String blogContent) throws Exception {
+        if (blogTitle.length() <= 20 && blogContent.length() <= 100) {
+            dao.insertBlog(blogTitle, blogContent);
+        } else {
+            throw new Exception("限制blogTitle长度20个英文字符，blogContent长度为100个英文字符");
+        }
     }
 }
 ```
 
-5. UserController，控制层，调用业务逻辑UserService，返回对应的视图名称和数据
+4. BlogController，控制层，调用业务逻辑BlogService，返回对应的视图名称和数据
 ```java
 @Controller
-public class UserController {
+public class BlogController {
 
     @Autowired
-    private UserService userService;
+    private BlogService blogService;
 
-    @RequestMapping(path = { "/userlist"})
-    public String userList(Model model) {
-        model.addAttribute("userList", this.userService.getUserList());
-
-        return "user";
+    @RequestMapping(path = { "/insertblog" })
+    @ResponseBody
+    public String insertBlog(@RequestParam String blogTitle, @RequestParam String blogContent,
+            HttpServletResponse response) {
+        try {
+            blogService.insertBlog(blogTitle, blogContent);    
+        } catch (Exception e) {
+            response.setStatus(400);
+            return e.getMessage();
+        }
+        
+        return "success 200";
     }
 }
 ```
 
-6. user.ftl 使用FreeMarker渲染的视图文件
-```xml
-<html lang="en-US">
-<head>
-    <meta charset="UTF-8">
-    <title>用户信息</title>
-</head>
-<body>
-    <table>
-        <thead>
-            <tr>
-                <td>userId</td>
-                <td>userName</td>
-            </tr>
-        </thead>
-        <tbody>
-            <#list userList as user>
-                <tr>
-                    <td>${user.userId}</td>
-                    <td>${user.userName}</td>
-                </tr>
-            </#list>
-        </tbody>
-    </table>
-</body>
-</html>
-```
+
 
 ## 结果展示
 
-1. HTML头
-![](./results/html头.png)
+1. 添加成功，返回的Status 200
+![](./results/200.jpg)
+![](./results/sql.jpg)
 
-2. JSON头
-![](./results/json头.png)
-
-3. html后缀
-![](./results/html后缀.png)
-
-4. json后缀
-![](./results/json后缀.png)
+2. 添加失败，返回的status 400
+![](./results/400.jpg)
